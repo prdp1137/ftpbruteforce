@@ -1,4 +1,5 @@
 import ftplib
+import sys
 def connect(host,user,password):
         try:
                 ftp = ftplib.FTP(host)
@@ -10,7 +11,10 @@ def connect(host,user,password):
 
 def main():
         Hostname = '127.0.0.1' # Host to be given here
-        username = 'root' # FTP username here
+        if len(sys.argv) == 2:
+                username = sys.argv[1]
+        else:
+                username = 'root' # FTP username here
         passwordspath = 'passwords.txt' # Dictionary file for bruteforcing
         
         print '[+] Using anonymous credentials for ' + Hostname
